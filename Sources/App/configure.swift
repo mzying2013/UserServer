@@ -25,6 +25,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     var migrations = MigrationConfig()
     migrations.add(model: LoginUser.self, database: .psql)
     migrations.add(model: AccessToken.self, database: .psql)
+    migrations.add(model: RefreshToken.self, database: .psql)
     
     services.register(migrations)
     

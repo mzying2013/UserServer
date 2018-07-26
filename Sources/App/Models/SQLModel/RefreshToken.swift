@@ -8,12 +8,11 @@
 import Crypto
 
 struct RefreshToken: BaseSQLModel {
-    
-    var id : Int?
+    typealias Token = String
     
     static var entity : String { return self.name + "s"}
     
-    typealias Token = String
+    var id : Int?
     
     let tokenString : Token
     let userID : String

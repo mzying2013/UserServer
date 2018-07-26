@@ -7,7 +7,7 @@ public func routes(_ router: Router) throws {
         return "Hello, world!"
     }
     
-    router.get("version") { (req) in
+    router.get("version") {req in
         return req.description
     }
 

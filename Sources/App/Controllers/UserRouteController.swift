@@ -80,18 +80,3 @@ extension UserRouterController{
 
 
 
-
-struct AccessContainer: Content {
-    
-    var accessToken: String
-    var userID: String?
-    
-    init(accessToken: String, userID: String? = nil){
-        self.accessToken = accessToken
-        self.userID = userID
-    }
-    
-}
-
-
-
