@@ -21,10 +21,10 @@ struct ResponseJSON<T: Content> : Content {
     
     
     init(status: ResponseStatus = .ok,
-         message: String = ResponseStatus.ok.desc,
+         message: String? = nil,
          data:T? = nil) {
         self.status = status
-        self.message = message
+        self.message = message ?? status.desc        
         self.data = data
     }
 }
