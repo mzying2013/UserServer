@@ -16,14 +16,32 @@ final class UserRouterController : RouteCollection{
     
     func boot(router: Router) throws {
         
-        let group = router.grouped("user")
+//        let group = router.grouped("user")
         
-        group.post(LoginUser.self, use: registerUserHandler)
+        let group = "user"
+        
+        router.post(LoginUser.self, at: group, use: registerUserHandler)
+        router.get(group, use: allUserHandler)
+        
     }
 }
 
 
 extension UserRouterController{
+    
+    func allUserHandler(_ req: Request) -> Future<Response> {
+        let query = LoginUser.query(on: req)
+        
+        return query.all().flatMap {users in
+            
+            let userContainer = users.map({ (user: LoginUser) -> UserContainer in
+                return UserContainer(userID: user.id!, account: user.account, password: user.password)
+            })
+            
+            return try ResponseJSON<[UserContainer]>(status: .ok, message: nil, data: userContainer).encode(for: req)
+        }
+    }
+    
     
     //MARK: 注册
     func registerUserHandler(_ req: Request, newUser: LoginUser) throws -> Future<Response> {
