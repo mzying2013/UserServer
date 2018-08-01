@@ -22,6 +22,11 @@ final class UserRouterController : RouteCollection{
         rootGroup.post(LoginUser.self, at: userGroup, use: registerUserHandler)
         rootGroup.get(userGroup, use: allUserHandler)
         
+        //Login
+        rootGroup.post(LoginUser.self, at: userGroup,"authorization", use: loginUserHandler)
+        //Exit
+        rootGroup.delete(userGroup,"authorization", use: exitUserHandler)
+        
     }
 }
 
@@ -46,7 +51,7 @@ extension UserRouterController{
     func registerUserHandler(_ req: Request, newUser: LoginUser) throws -> Future<Response> {
         //查询同名 account
         let futureFirst = LoginUser.query(on: req).filter(\.account == newUser.account).first()
-
+        
         return futureFirst.flatMap({existingUser in
             //判断用户是否存在
             guard existingUser == nil else{
@@ -91,8 +96,75 @@ extension UserRouterController{
             })
             
         })
+    }
+    
+    
+    
+    //根据账户名搜索
+    //查看搜索结果
+    //校验密码
+    //生成AccessToken & RefreshToken
+    //转换为 AccessContainer 结构体
+    
+    
+    func loginUserHandler(_ req: Request, lu : LoginUser) throws -> Future<Response> {
+        
+        let first = LoginUser.query(on: req).filter(\.account == lu.account).first()
+        
+        return first.flatMap({ (eu : LoginUser?) -> Future<Response> in
+            
+            guard let existingUser = eu else{
+                return try ResponseJSON<Empty>(status: .userNotExist).encode(for: req)
+            }
+            
+            
+            let digest = try req.make(BCryptDigest.self)
+            guard try digest.verify(lu.password, created: existingUser.password) else{
+                return try ResponseJSON<Empty>(status: .passwordError).encode(for: req)
+            }
+            
+            
+            let accessAndRefreshToken = try self.authController.authContainer(for: existingUser, on: req)
+            
+            return accessAndRefreshToken.flatMap({ (ac : AuthContainer) -> Future<Response> in
+                
+                let accessCon = AccessContainer(accessToken: ac.accessToken, userID: existingUser.userID)
+                
+                return try ResponseJSON<AccessContainer>(status: .ok, message: "登录成功", data: accessCon).encode(for: req)
+            })
+        })
         
     }
+    
+    
+    
+    
+    
+    func exitUserHandler(_ req : Request) throws -> Future<Response> {
+        //获取参数
+        return try req.content.decode(AccessContainer.self).flatMap({ (ac : AccessContainer) -> Future<Response> in
+            //转换为 BearerAuthorization 结构体
+            let bearToken = BearerAuthorization(token: ac.accessToken)
+            
+            //查找 accessToken
+            return AccessToken.authenticate(using: bearToken, on: req).flatMap({ (at : AccessToken?) -> Future<Response> in
+                guard let existingToken = at else{
+                    //没有找到 accessToken
+                    return try ResponseJSON<Empty>(status: .token).encode(for: req)
+                }
+                
+                //找到 accessToken
+                return try self.authController.remokeTokens(userID: existingToken.userID, on: req).flatMap({_ -> Future<Response> in
+                    return try ResponseJSON<Empty>(status: .ok, message: "退出登录成功").encode(for: req)
+                })
+            })
+            
+        })
+        
+    }
+    
+    
+    
 }
 
 

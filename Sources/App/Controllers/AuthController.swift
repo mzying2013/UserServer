@@ -20,7 +20,9 @@ struct AuthController {
     
     func authContainer(for user: LoginUser, on connection: DatabaseConnectable) throws -> Future<AuthContainer> {
         return try removeAllTokens(for: user, on: connection).flatMap({ _ in
-            return try map(to: AuthContainer.self, self.accessToken(for: user, on: connection), self.refreshToken(for: user, on: connection), {(access, refresh) in
+            return try map(to: AuthContainer.self,
+                           self.accessToken(for: user, on: connection),
+                           self.refreshToken(for: user, on: connection), {(access, refresh) in
                 return AuthContainer(accessToken: access, refreshToken: refresh)
             })
         })
