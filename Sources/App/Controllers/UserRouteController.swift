@@ -16,12 +16,11 @@ final class UserRouterController : RouteCollection{
     
     func boot(router: Router) throws {
         
-//        let group = router.grouped("user")
+        let rootGroup = router.grouped("app")
+        let userGroup = "user"
         
-        let group = "user"
-        
-        router.post(LoginUser.self, at: group, use: registerUserHandler)
-        router.get(group, use: allUserHandler)
+        rootGroup.post(LoginUser.self, at: userGroup, use: registerUserHandler)
+        rootGroup.get(userGroup, use: allUserHandler)
         
     }
 }
