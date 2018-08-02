@@ -19,7 +19,10 @@ final class UserRouterController : RouteCollection{
         let rootGroup = router.grouped("app")
         let userGroup = "user"
         
+        //注册
         rootGroup.post(LoginUser.self, at: userGroup, use: registerUserHandler)
+        
+        //所有用户列表
         rootGroup.get(userGroup, use: allUserHandler)
         
         //Login
@@ -162,6 +165,9 @@ extension UserRouterController{
         })
         
     }
+    
+    
+    
     
     
     
