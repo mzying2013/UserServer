@@ -14,3 +14,10 @@ struct UserContainer : Content {
     var password: String
     
 }
+
+
+struct PasswordContainer : Content{
+    var account : String
+    var password : String
+    var newPassword: String
+}

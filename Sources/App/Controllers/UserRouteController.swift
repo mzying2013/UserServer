@@ -20,18 +20,22 @@ final class UserRouterController : RouteCollection{
         let rootGroup = router.grouped("app")
         let userGroup = "user"
         
+        //用户
         //注册
         rootGroup.post(LoginUser.self, at: userGroup, use: registerUserHandler)
+        rootGroup.put(PasswordContainer.self, at: userGroup, use: passwordUserHandler)
         
         //所有用户列表
         rootGroup.get(userGroup, use: allUserHandler)
         
+        
+        //授权
         //Login
         rootGroup.post(LoginUser.self, at: userGroup,"authorization", use: loginUserHandler)
         //Exit
         rootGroup.delete(userGroup,"authorization", use: exitUserHandler)
         //所有登录用户列表
-        rootGroup.get(userGroup,"authorization", use: allLoginUserHandler)
+        rootGroup.get(userGroup,"authorization", use: allAuthorizationUserHandler)
         
     }
 }
@@ -39,6 +43,7 @@ final class UserRouterController : RouteCollection{
 
 extension UserRouterController{
     
+    //MARK: 所有用户
     func allUserHandler(_ req: Request) -> Future<Response> {
         let query = LoginUser.query(on: req)
         
@@ -112,7 +117,7 @@ extension UserRouterController{
     //生成AccessToken & RefreshToken
     //转换为 AccessContainer 结构体
     
-    
+    //MARK: 登录
     func loginUserHandler(_ req: Request, lu : LoginUser) throws -> Future<Response> {
         
         let first = LoginUser.query(on: req).filter(\.account == lu.account).first()
@@ -144,8 +149,48 @@ extension UserRouterController{
     
     
     
+    //MARK: 修改密码
+    func passwordUserHandler(_ req : Request, passContainer: PasswordContainer) -> Future<Response> {
+        
+        let first = LoginUser.query(on: req).filter(\.account == passContainer.account).first()
+        
+        return first.flatMap { (user : LoginUser?) -> Future<Response> in
+            
+            guard var validateUser = user else{
+                return try ResponseJSON<Empty>(status: .userNotExist).encode(for: req)
+            }
+            
+            //旧密码 老密码格式校验
+            let isOldPassword = passContainer.password.isPassword()
+            guard isOldPassword.valid else{
+                return try ResponseJSON<Empty>(status: .error, message: "原密码" + isOldPassword.msg).encode(for: req)
+            }
+            
+            let isNewPassword = passContainer.newPassword.isPassword()
+            guard isNewPassword.valid else{
+                return try ResponseJSON<Empty>(status: .error, message: "新密码" + isNewPassword.msg).encode(for: req)
+            }
+            
+            
+            //密码验证
+            let digest = try req.make(BCryptDigest.self)
+            guard try digest.verify(passContainer.password, created: validateUser.password) else{
+                return try ResponseJSON<Empty>(status: .passwordError).encode(for: req)
+            }
+            
+            validateUser.password = try req.make(BCryptDigest.self).hash(passContainer.newPassword)
+            
+            return validateUser.update(on: req).flatMap({_ -> Future<Response> in
+                return try ResponseJSON<Empty>(status: .ok, message: "密码更新成功").encode(for: req)
+            })
+        }
+        
+    }
     
     
+    
+    
+    //MARK: 退出登录
     func exitUserHandler(_ req : Request) throws -> Future<Response> {
         //获取参数
         return try req.content.decode(AccessContainer.self).flatMap({ (ac : AccessContainer) -> Future<Response> in
@@ -169,8 +214,8 @@ extension UserRouterController{
     }
     
     
-    
-    func allLoginUserHandler(_ req : Request) throws -> Future<Response> {
+    //MARK: 所有登录用户
+    func allAuthorizationUserHandler(_ req : Request) throws -> Future<Response> {
         let all = AccessToken.query(on: req).filter(\.expiryTime > Date()).all()
         
         return all.flatMap { (tokens : [AccessToken]) -> Future<Response> in
