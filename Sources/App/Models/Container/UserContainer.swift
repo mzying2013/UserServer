@@ -9,9 +9,8 @@ import Vapor
 
 
 struct UserContainer : Content {
-    var userID : Int
+    var userID : String
     var account : String
     var password: String
-    
     
 }

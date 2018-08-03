@@ -22,6 +22,13 @@ struct AccessToken: BaseSQLModel {
     private(set) var userID : String
     let expiryTime : Date
     
+    
+    var expiryTimeString : String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.S"
+        return formatter.string(from: expiryTime)
+    }
+    
     init(userID: String) throws {
         self.tokenString = try CryptoRandom().generateData(count: 32).base64EncodedString()
         self.userID = userID

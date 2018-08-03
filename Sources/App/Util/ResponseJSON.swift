@@ -41,6 +41,7 @@ enum ResponseStatus : Int, Content{
     case userExist = 20
     case userNotExist = 21
     case passwordError = 22
+    case emptyData = 40
     
     var desc : String{
         switch self {
@@ -67,6 +68,9 @@ enum ResponseStatus : Int, Content{
             
         case .passwordError:
             return  "密码不正确"
+            
+        case .emptyData:
+            return "空数据"
             
         }
     }

@@ -9,6 +9,7 @@ import Vapor
 
 import Crypto
 import Authentication
+import FluentSQL
 
 
 final class UserRouterController : RouteCollection{
@@ -29,6 +30,8 @@ final class UserRouterController : RouteCollection{
         rootGroup.post(LoginUser.self, at: userGroup,"authorization", use: loginUserHandler)
         //Exit
         rootGroup.delete(userGroup,"authorization", use: exitUserHandler)
+        //所有登录用户列表
+        rootGroup.get(userGroup,"authorization", use: allLoginUserHandler)
         
     }
 }
@@ -42,7 +45,7 @@ extension UserRouterController{
         return query.all().flatMap {users in
             
             let userContainer = users.map({ (user: LoginUser) -> UserContainer in
-                return UserContainer(userID: user.id!, account: user.account, password: user.password)
+                return UserContainer(userID: user.userID!, account: user.account, password: user.password)
             })
             
             return try ResponseJSON<[UserContainer]>(status: .ok, message: nil, data: userContainer).encode(for: req)
@@ -156,17 +159,51 @@ extension UserRouterController{
                     return try ResponseJSON<Empty>(status: .token).encode(for: req)
                 }
                 
-                //找到 accessToken
+                //找到 accessToken 后删除
                 return try self.authController.remokeTokens(userID: existingToken.userID, on: req).flatMap({_ -> Future<Response> in
                     return try ResponseJSON<Empty>(status: .ok, message: "退出登录成功").encode(for: req)
                 })
             })
             
         })
-        
     }
     
     
+    
+    func allLoginUserHandler(_ req : Request) throws -> Future<Response> {
+        let all = AccessToken.query(on: req).filter(\.expiryTime > Date()).all()
+        
+        return all.flatMap { (tokens : [AccessToken]) -> Future<Response> in
+            guard tokens.count > 0 else{
+                return try ResponseJSON<Empty>(status: .emptyData, message: "没有找到已登录的用户")
+                    .encode(for: req)
+            }
+            
+            let userIDs  = tokens.map{$0.userID}
+            let usersFuture = LoginUser.query(on: req).filter(\.userID ~~ userIDs).all()
+            
+            
+            return usersFuture.flatMap({ (users : [LoginUser]) -> Future<Response> in
+                
+                
+                let authContainers = users.map({ (user : LoginUser) -> AuthorizationContainer in
+                    let userContainer = UserContainer(userID: user.userID!,
+                                                      account: user.account,
+                                                      password: user.password)
+                    
+                    let token = tokens.filter{$0.userID == user.userID}.first!
+                    return AuthorizationContainer(user: userContainer,
+                                                  accessToken: token.tokenString,
+                                                  expiresIn: token.expiryTimeString)
+                })//End users.map
+                
+                return try ResponseJSON<[AuthorizationContainer]>(status: .ok, data: authContainers).encode(for: req)
+                
+            })//End usersFuture.flatMap
+            
+            
+        }//End all.flatMap
+    }
     
     
     
