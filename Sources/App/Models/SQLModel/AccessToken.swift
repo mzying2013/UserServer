@@ -34,7 +34,6 @@ struct AccessToken: BaseSQLModel {
         self.userID = userID
         self.expiryTime = Date().addingTimeInterval(AccessToken.accessTokenExpirationInterval)
     }
-    
 }
 
 
