@@ -217,21 +217,24 @@ extension UserRouterController{
                         return try ResponseJSON<Empty>(status: .error, message: "图片超过2MB！").encode(for: req)
                     }
                     
-                    imgName = file.filename
+                    imgName = file.uniqueFileName
                     if !FileManager.default.fileExists(atPath: kImageDir){
                         try FileManager.default.createDirectory(atPath: kImageDir, withIntermediateDirectories: true, attributes: nil)
                     }
                     
-                    try Data(file.data).write(to: URL(fileURLWithPath: kImageDir))
+                    try Data(file.data).write(to: URL(fileURLWithPath: kImageDir + imgName!))
                 }
                 
                 let updatedUserInfo: UserInfo?
                 if var existInfo = userInfo {
                     updatedUserInfo = existInfo.update(with: container)
                     
-                    if let existPicName = existInfo.picName, let _ = imgName{
-                        let path = URL(fileURLWithPath: kImageDir).appendingPathComponent(existPicName)
-                        try FileManager.default.removeItem(at: path)
+                    if let existPicName = existInfo.picName{
+                        let path = kImageDir + existPicName;
+                        
+                        if FileManager.default.fileExists(atPath: path){
+                            try FileManager.default.removeItem(at: URL(fileURLWithPath:path))
+                        }
                     }
                     updatedUserInfo?.picName = imgName
                 }else{
