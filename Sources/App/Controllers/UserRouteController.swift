@@ -23,7 +23,11 @@ final class UserRouterController : RouteCollection{
         //用户
         //注册
         rootGroup.post(LoginUser.self, at: userGroup, use: registerUserHandler)
+        //修改密码
         rootGroup.put(PasswordContainer.self, at: userGroup, use: passwordUserHandler)
+        //更新用户信息
+        rootGroup.post(UserInfoContainer.self, at: userGroup, "info", use: updateInfoHandler)
+        
         
         //所有用户列表
         rootGroup.get(userGroup, use: allUserHandler)
@@ -37,6 +41,7 @@ final class UserRouterController : RouteCollection{
         //所有登录用户列表
         rootGroup.get(userGroup,"authorization", use: allAuthorizationUserHandler)
         
+        
     }
 }
 
@@ -45,6 +50,8 @@ extension UserRouterController{
     
     //MARK: 所有用户
     func allUserHandler(_ req: Request) -> Future<Response> {
+        
+        
         let query = LoginUser.query(on: req)
         
         return query.all().flatMap {users in
@@ -184,6 +191,64 @@ extension UserRouterController{
                 return try ResponseJSON<Empty>(status: .ok, message: "密码更新成功").encode(for: req)
             })
         }
+    }
+    
+    
+    
+    //MARK: 更新用户信息
+    func updateInfoHandler(_ req : Request , container : UserInfoContainer) -> Future<Response> {
+        
+        let bearToken = BearerAuthorization(token: container.token)
+        
+        return AccessToken.authenticate(using: bearToken, on: req).flatMap({ (token : AccessToken?) -> Future<Response> in
+            
+            guard let existToken = token else{
+                return try ResponseJSON<Empty>(status: .token).encode(for: req)
+            }
+            
+            let first = UserInfo.query(on: req).filter(\.userID == existToken.userID).first()
+            
+            return first.flatMap({(userInfo : UserInfo?) -> Future<Response> in
+                
+                var imgName : String?
+                
+                if let file = container.picImage{
+                    guard file.data.count < kImageMaxBytesSize else{
+                        return try ResponseJSON<Empty>(status: .error, message: "图片超过2MB！").encode(for: req)
+                    }
+                    
+                    imgName = file.filename
+                    if !FileManager.default.fileExists(atPath: kImageDir){
+                        try FileManager.default.createDirectory(atPath: kImageDir, withIntermediateDirectories: true, attributes: nil)
+                    }
+                    
+                    try Data(file.data).write(to: URL(fileURLWithPath: kImageDir))
+                }
+                
+                let updatedUserInfo: UserInfo?
+                if var existInfo = userInfo {
+                    updatedUserInfo = existInfo.update(with: container)
+                    
+                    if let existPicName = existInfo.picName, let _ = imgName{
+                        let path = URL(fileURLWithPath: kImageDir).appendingPathComponent(existPicName)
+                        try FileManager.default.removeItem(at: path)
+                    }
+                    updatedUserInfo?.picName = imgName
+                }else{
+                    updatedUserInfo = UserInfo(id: nil,
+                                               userID: existToken.userID,
+                                               sex: container.sex,
+                                               nickName: container.nickName,
+                                               picName: imgName)
+                }
+                
+                return (updatedUserInfo!.save(on: req).flatMap({ (userInfo : UserInfo) -> Future<Response> in
+                    return try ResponseJSON<Empty>(status: .ok, message: "更新用户信息成功").encode(for: req)
+                }))
+                
+            })
+            
+        })
         
     }
     
