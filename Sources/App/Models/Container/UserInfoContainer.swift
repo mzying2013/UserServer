@@ -15,4 +15,18 @@ struct UserInfoContainer : Content {
     var nickName : String?
     var picImage : File?
     
+    //图片链接地址
+    var picImageURL : String?
+    
+    
+    init(token : String, userInfo : UserInfo) {
+        self.token = token
+        self.sex = userInfo.sex
+        self.nickName = userInfo.nickName
+        
+        if let picName = userInfo.picName{
+            self.picImageURL = "https://api.mzying.com/image/" + picName
+        }
+    }
+        
 }

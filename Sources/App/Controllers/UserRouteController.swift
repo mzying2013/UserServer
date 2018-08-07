@@ -17,29 +17,30 @@ final class UserRouterController : RouteCollection{
     
     func boot(router: Router) throws {
         
-        let rootGroup = router.grouped("app")
         let userGroup = "user"
+        
         
         //用户
         //注册
-        rootGroup.post(LoginUser.self, at: userGroup, use: registerUserHandler)
+        router.post(LoginUser.self, at: userGroup, use: registerUserHandler)
         //修改密码
-        rootGroup.put(PasswordContainer.self, at: userGroup, use: passwordUserHandler)
+        router.put(PasswordContainer.self, at: userGroup, use: passwordUserHandler)
         //更新用户信息
-        rootGroup.post(UserInfoContainer.self, at: userGroup, "info", use: updateInfoHandler)
-        
+        router.post(UserInfoContainer.self, at: userGroup, "info", use: updateInfoHandler)
+        //获取用户信息
+        router.get(userGroup,"info", String.parameter, use: userInfoHandler)
         
         //所有用户列表
-        rootGroup.get(userGroup, use: allUserHandler)
+        router.get(userGroup, use: allUserHandler)
         
         
         //授权
         //Login
-        rootGroup.post(LoginUser.self, at: userGroup,"authorization", use: loginUserHandler)
+        router.post(LoginUser.self, at: userGroup,"authorization", use: loginUserHandler)
         //Exit
-        rootGroup.delete(userGroup,"authorization", use: exitUserHandler)
+        router.delete(userGroup,"authorization", use: exitUserHandler)
         //所有登录用户列表
-        rootGroup.get(userGroup,"authorization", use: allAuthorizationUserHandler)
+        router.get(userGroup,"authorization", use: allAuthorizationUserHandler)
         
         
     }
@@ -253,6 +254,35 @@ extension UserRouterController{
             
         })
         
+    }
+    
+    
+    
+    //MARK: 获取用户信息
+    func userInfoHandler(_ req: Request) throws -> Future<Response> {
+        let token = try req.parameters.next(String.self)
+        
+        let first = AccessToken.query(on: req).filter(\.tokenString == token).first()
+        
+        return first.flatMap {accessToken in
+            guard let accessToken = accessToken else{
+                return try ResponseJSON<Empty>(status: .token).encode(for: req)
+            }
+            
+            let userID = accessToken.userID
+            
+            let userFirst = UserInfo.query(on: req).filter(\.userID == userID).first()
+            
+            return userFirst.flatMap({ (userInfo : UserInfo?) -> Future<Response> in
+                
+                guard let userInfo = userInfo else{
+                    return try ResponseJSON<Empty>(status: .userNotExist).encode(for: req)
+                }
+                
+                let container = UserInfoContainer(token: accessToken.tokenString, userInfo: userInfo)
+                return try ResponseJSON<UserInfoContainer>(status: .ok, data: container).encode(for: req)
+            })
+        }
     }
     
     

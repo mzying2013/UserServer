@@ -8,17 +8,16 @@
 import Vapor
 
 
+
 extension File{
     var uniqueFileName : String{
-        var uniqueFileName = filename
-        let index = uniqueFileName.index(of: ".")
         
-        guard let foundIndex = index else{
-            return uniqueFileName + UUID().uuidString
+        let unique = UUID().uuidString
+        
+        guard let ext = ext else{
+            return unique
         }
         
-        uniqueFileName.insert(contentsOf: UUID().uuidString, at: foundIndex)
-        
-        return uniqueFileName
+        return unique + "." + ext
     }
 }
