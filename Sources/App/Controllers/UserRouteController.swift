@@ -28,7 +28,7 @@ final class UserRouterController : RouteCollection{
         //更新用户信息
         router.post(UserInfoContainer.self, at: userGroup, "info", use: updateInfoHandler)
         //获取用户信息
-        router.get(userGroup,"info", String.parameter, use: userInfoHandler)
+        router.get(userGroup,"info", use: userInfoHandler)
         
         //所有用户列表
         router.get(userGroup, use: allUserHandler)
@@ -260,7 +260,13 @@ extension UserRouterController{
     
     //MARK: 获取用户信息
     func userInfoHandler(_ req: Request) throws -> Future<Response> {
-        let token = try req.parameters.next(String.self)
+        let token : String
+        
+        do {
+            token = try req.query.get(String.self, at: "token")
+        } catch {
+            return try ResponseJSON<Empty>(status: .error, message: "缺少参数：token").encode(for: req)
+        }
         
         let first = AccessToken.query(on: req).filter(\.tokenString == token).first()
         
